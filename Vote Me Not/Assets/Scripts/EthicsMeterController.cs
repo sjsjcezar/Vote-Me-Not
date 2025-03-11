@@ -1,3 +1,10 @@
+/* Authored by: Samuel Cezar
+Company: Company Name
+Project: Project Name
+Feature: [NXR-003] Ethics Meter System Feature
+Description: Code responsible for updating markers and ethics meter. If certain codes are being called here, it is because they are part of the Ethics Meter System Feature.
+ */
+
 using UnityEngine;
 using UnityEngine.UI;
 

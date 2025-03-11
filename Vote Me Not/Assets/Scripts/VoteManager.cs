@@ -1,3 +1,11 @@
+/* Authored by: Samuel Cezar
+Company: Company Name
+Project: Project Name
+Feature: [NXR-002] Accept Reject System Feature
+Description: If certain codes are being called here, it is because they are part of the Accept Reject System Feature.
+ */
+
+
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
