@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b040c631e59bcde458d28545003c1763, type: 3}
+  m_Name: DisagreeDialogue
+  m_EditorClassIdentifier: 
+  dialogueLines:
+  - text: What?
+    voiceClip: {fileID: 0}
+    textHighlight: Marilag
+    highlightColor: {r: 0, g: 0.87058824, b: 0, a: 0}
+  - text: "Sorry, I didn\u2019t hear what you said. You disagree? Okay"
+    voiceClip: {fileID: 0}
+    textHighlight: 
+    highlightColor: {r: 0.9528302, g: 0.21124065, b: 0.21124065, a: 0}
+  - text: But listen, I understand your doubts, and I respect different opinions.
+    voiceClip: {fileID: 0}
+    textHighlight: pro-Philippines
+    highlightColor: {r: 0.40142456, g: 0.8584906, b: 0.2956123, a: 0}
+  - text: "At the end of the day, everything I do is for the betterment of our country.
+      And trust me, I\u2019ve heard enough criticism to know that leadership isn\u2019t
+      always easy!"
+    voiceClip: {fileID: 0}
+    textHighlight: pro-Philippines
+    highlightColor: {r: 0.40142456, g: 0.8584906, b: 0.2956123, a: 0}

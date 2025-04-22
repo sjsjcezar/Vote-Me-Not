@@ -1,3 +1,11 @@
+/* Authored by: Samuel Cezar
+Company: Company Name
+Project: Project Name
+Feature: [NXR-006] Dialogue System Feature
+Description: certain codes are being called here, it is because they are part of the Dialogue System Feature
+ */
+
+
 using UnityEngine;
 using TMPro;
 using System.Collections;

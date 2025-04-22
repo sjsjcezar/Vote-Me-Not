@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b040c631e59bcde458d28545003c1763, type: 3}
+  m_Name: SucceedDialogue2
+  m_EditorClassIdentifier: 
+  dialogueLines:
+  - text: "Fine, you want the truth? Campaigns cost money\u2014lots of it. Ads are
+      just part of the game, and yes, they\u2019re expensive."
+    voiceClip: {fileID: 0}
+    textHighlight: Marilag
+    highlightColor: {r: 0, g: 0.87058824, b: 0, a: 0}
+  - text: "But if that\u2019s what it takes to win, then so be it. At least I\u2019m
+      upfront about it."
+    voiceClip: {fileID: 0}
+    textHighlight: 
+    highlightColor: {r: 0.9528302, g: 0.21124065, b: 0.21124065, a: 0}

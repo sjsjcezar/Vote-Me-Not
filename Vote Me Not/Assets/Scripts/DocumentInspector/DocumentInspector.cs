@@ -4,15 +4,17 @@ using UnityEngine;
 
 public class DocumentInspector : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
+    [SerializeField] private GameObject documentPanel;
+
+    // Assign this to your UI Drawer Button OnClick
+    public void ShowDocumentPanel()
     {
-        
+        documentPanel.SetActive(true);
     }
 
-    // Update is called once per frame
-    void Update()
+    // Assign this to your Back button OnClick
+    public void HideDocumentPanel()
     {
-        
+        documentPanel.SetActive(false);
     }
 }
