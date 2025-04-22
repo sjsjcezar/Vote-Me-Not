@@ -36,12 +36,21 @@ public class DialogueUI : MonoBehaviour
     private Queue<DialogueContentSO.DialogueLine> dialogueLines;
     private bool isTyping = false;
 
-    // Callback invoked when dialogue is complete.
     public Action onDialogueEnd;
 
-    /// <summary>
-    /// Sets the speaker's name on the UI.
-    /// </summary>
+    private bool forceComplete = false;
+    private Coroutine currentDialogueCoroutine;
+
+    void Update()
+    {
+        // Handle tap to skip typing effect
+        if (isTyping && (Input.GetMouseButtonDown(0) || (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)))
+        {
+            forceComplete = true;
+        }
+    }
+
+
     public void SetSpeakerName(string name)
     {
         if (speakerNameText != null)
@@ -55,19 +64,24 @@ public class DialogueUI : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Starts the dialogue sequence using the provided DialogueContentSO.
-    /// </summary>
     public void StartDialogue(DialogueContentSO dialogueContent)
     {
+        // Stop any existing dialogue first
+        if (currentDialogueCoroutine != null)
+        {
+            StopCoroutine(currentDialogueCoroutine);
+            ClearDialogue();
+        }
+
         if(dialogueContent == null || dialogueContent.dialogueLines.Count == 0)
         {
             Debug.LogWarning("Dialogue content is null or empty.");
             return;
         }
+        
         dialogueBox.SetActive(true);
         dialogueLines = new Queue<DialogueContentSO.DialogueLine>(dialogueContent.dialogueLines);
-        StartCoroutine(PlayDialogue());
+        currentDialogueCoroutine = StartCoroutine(PlayDialogue());
     }
 
     IEnumerator PlayDialogue()
@@ -103,9 +117,9 @@ public class DialogueUI : MonoBehaviour
     IEnumerator TypeText(DialogueContentSO.DialogueLine line)
     {
         isTyping = true;
+        forceComplete = false;
         dialogueText.text = "";
-
-        // Replace any text that needs to be highlighted.
+        
         string processedText = line.text;
         if (!string.IsNullOrEmpty(line.textHighlight))
         {
@@ -114,22 +128,53 @@ public class DialogueUI : MonoBehaviour
                 $"<color=#{ColorUtility.ToHtmlStringRGB(line.highlightColor)}>{line.textHighlight}</color>"
             );
         }
+
         dialogueText.text = processedText;
         dialogueText.maxVisibleCharacters = 0;
         int totalCharacters = processedText.Length;
+
         for (int i = 0; i < totalCharacters; i++)
         {
+            if (forceComplete)
+            {
+                dialogueText.maxVisibleCharacters = totalCharacters;
+                break;
+            }
+            
             dialogueText.maxVisibleCharacters = i + 1;
             yield return new WaitForSeconds(typewriterSpeed);
         }
+
         isTyping = false;
+        forceComplete = false;
+    }
+
+    public void ClearDialogue()
+    {
+        if (currentDialogueCoroutine != null)
+        {
+            StopCoroutine(currentDialogueCoroutine);
+            currentDialogueCoroutine = null;
+        }
+        
+        dialogueText.text = "";
+        dialogueText.maxVisibleCharacters = int.MaxValue;
+        dialogueBox.SetActive(false);
+        isTyping = false;
+        forceComplete = false;
+        
+        // Clear any remaining lines
+        if (dialogueLines != null)
+            dialogueLines.Clear();
+
+        onDialogueEnd?.Invoke();
+        onDialogueEnd = null;
     }
 
     void EndDialogue()
     {
-        dialogueBox.SetActive(false);
+        ClearDialogue();
         Debug.Log("Dialogue ended.");
-        onDialogueEnd?.Invoke();
-        onDialogueEnd = null;
     }
+    
 }

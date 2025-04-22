@@ -13,12 +13,16 @@ MonoBehaviour:
   m_Name: FailedDialogue2
   m_EditorClassIdentifier: 
   dialogueLines:
-  - text: Campaigns should be about merit, not money.
+  - text: So you think you can question me about strategy?
     voiceClip: {fileID: 0}
     textHighlight: Marilag
     highlightColor: {r: 0, g: 0.87058824, b: 0, a: 0}
-  - text: "xcessive spending raises questions about priorities\u2014shouldn't resources
-      be focused on real solutions instead?"
+  - text: Those ads created trust, credibility, and results! Maybe you should focus
+      on your own failures before critiquing mine.
+    voiceClip: {fileID: 0}
+    textHighlight: 
+    highlightColor: {r: 0.9528302, g: 0.21124065, b: 0.21124065, a: 0}
+  - text: Enough of this.
     voiceClip: {fileID: 0}
     textHighlight: 
     highlightColor: {r: 0.9528302, g: 0.21124065, b: 0.21124065, a: 0}

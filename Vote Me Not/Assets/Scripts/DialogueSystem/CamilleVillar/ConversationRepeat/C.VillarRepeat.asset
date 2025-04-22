@@ -10,19 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b040c631e59bcde458d28545003c1763, type: 3}
-  m_Name: SucceedDialogue2
+  m_Name: C.VillarRepeat
   m_EditorClassIdentifier: 
   dialogueLines:
-  - text: Fine, you want the truth?!
+  - text: Boy you better shut up
     voiceClip: {fileID: 0}
-    textHighlight: Marilag
+    textHighlight: Camille Villar
     highlightColor: {r: 0, g: 0.87058824, b: 0, a: 0}
-  - text: "Ads are just part of the game, and I don't CARE if they\u2019re expensive."
+  - text: This is the repeat 1
     voiceClip: {fileID: 0}
-    textHighlight: 
-    highlightColor: {r: 0.9528302, g: 0.21124065, b: 0.21124065, a: 0}
-  - text: "if raising my image and staying ahead means spending big, so be it. Maybe
-      you wouldn\u2019t understand the stakes of playing at this level."
-    voiceClip: {fileID: 0}
-    textHighlight: 
+    textHighlight: magbibintang
     highlightColor: {r: 0.9528302, g: 0.21124065, b: 0.21124065, a: 0}

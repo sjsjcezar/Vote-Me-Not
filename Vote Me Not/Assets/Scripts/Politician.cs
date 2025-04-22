@@ -1,11 +1,19 @@
 using UnityEngine;
 
+[System.Serializable]
+public struct ConversationDialogue
+{
+    public DialogueContentSO initial;
+    public DialogueContentSO[] repeatables;
+}
+
 public class Politician : MonoBehaviour
 {
     // Politician's display name (set in the Inspector)
     public string npcName;
 
     public AffiliationGlobalEnum affiliation;
+    
 
     [Header("Dialogue Settings")]
     public DialogueContentSO initialDialogueContent;    // Initial dialogue (claim presentation)
@@ -23,6 +31,26 @@ public class Politician : MonoBehaviour
     [Tooltip("What the NPC says when you DISAGREE with Claim #i")]
     public DialogueContentSO[] disagreeResponseContents;
 
+    [Header("Conversation Dialogues")]
+    public ConversationDialogue[] conversationDialogues;
+
+
+    [Header("Button Text Customization")]
+    [Tooltip("Text for claim buttons (index 0 = Claim 1)")]
+    public string[] claimButtonTexts = new string[3];
+
+    [Header("Dialogue Option Texts")]
+    [Tooltip("Texts for agree button per claim (index 0 = Claim 1)")]
+    public string[] agreeButtonTexts = new string[3];
+    [Tooltip("Texts for disagree button per claim")]
+    public string[] disagreeButtonTexts = new string[3];
+    [Tooltip("Texts for skill check button per claim")]
+    public string[] skillCheckButtonTexts = new string[3];
+    [Tooltip("Texts for conversation button per claim")]
+    public string[] conversationButtonTexts = new string[3];
+
+    private bool[] initialConversationPlayed;
+
 
 
     // Tracks which claims have been unlocked; initialized in Awake.
@@ -35,6 +63,13 @@ public class Politician : MonoBehaviour
             claimUnlocked = new bool[claimDialogueContents.Length];
             for (int i = 0; i < claimUnlocked.Length; i++)
                 claimUnlocked[i] = false;
+        }
+
+        // Initialize conversation tracker
+        initialConversationPlayed = new bool[conversationDialogues != null ? conversationDialogues.Length : 0];
+        for (int i = 0; i < initialConversationPlayed.Length; i++)
+        {
+            initialConversationPlayed[i] = false;
         }
     }
 
@@ -106,6 +141,47 @@ public class Politician : MonoBehaviour
         }
     }
 
+    public void TriggerConversationDialogue(int claimIndex)
+    {
+        if (conversationDialogues == null || claimIndex < 0 || claimIndex >= conversationDialogues.Length)
+        {
+            Debug.LogWarning("Invalid conversation index for " + npcName);
+            return;
+        }
+
+        ConversationDialogue conv = conversationDialogues[claimIndex];
+        DialogueContentSO content = null;
+
+        if (!initialConversationPlayed[claimIndex])
+        {
+            content = conv.initial;
+            initialConversationPlayed[claimIndex] = true;
+        }
+        else
+        {
+            if (conv.repeatables == null || conv.repeatables.Length == 0)
+            {
+                Debug.LogWarning("No repeatable dialogues for claim " + claimIndex + " on " + npcName);
+                return;
+            }
+            int randomIdx = Random.Range(0, conv.repeatables.Length);
+            content = conv.repeatables[randomIdx];
+        }
+
+        if (content == null)
+        {
+            Debug.LogWarning("Conversation content missing for claim " + claimIndex + " on " + npcName);
+            return;
+        }
+
+        DialogueUI dialogueUI = FindObjectOfType<DialogueUI>();
+        if (dialogueUI != null)
+        {
+            dialogueUI.SetSpeakerName(npcName);
+            dialogueUI.StartDialogue(content);
+        }
+    }
+
         
     public void TriggerAgreeDialogue(int claimIndex)
     {
@@ -151,6 +227,15 @@ public class Politician : MonoBehaviour
         else
         {
             Debug.LogError("DialogueUI not found in the scene.");
+        }
+    }
+
+
+    public void ResetConversationTracker(int claimIndex)
+    {
+        if (claimIndex >= 0 && claimIndex < initialConversationPlayed.Length)
+        {
+            initialConversationPlayed[claimIndex] = false;
         }
     }
 }

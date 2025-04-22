@@ -1,12 +1,14 @@
-using UnityEngine;
-using UnityEngine.UI;
-using System.Collections;
-
 /* Authored by: Samuel Cezar
    Company: Company Name
    Project: Project Name
    Feature: [NXR-002] Accept Reject System Feature
 */
+
+using UnityEngine;
+using UnityEngine.UI;
+using System.Collections;
+using TMPro;
+
 public class VoteManager : MonoBehaviour
 {
     [Header("Politicians Setup")]
@@ -35,6 +37,14 @@ public class VoteManager : MonoBehaviour
     public Button agreeButton;
     public Button disagreeButton;
     public Button skillCheckButton;
+    public Button conversationButton;
+
+    [Header("Text References")]
+    public TMP_Text[] claimButtonTextElements;
+    public TMP_Text agreeButtonText;
+    public TMP_Text disagreeButtonText;
+    public TMP_Text skillCheckButtonText;
+    public TMP_Text conversationButtonText;
 
     [Header("Skill Check Settings")]
     [Tooltip("Chance (0-100) to succeed the speech skill check.")]
@@ -81,17 +91,16 @@ public class VoteManager : MonoBehaviour
 
         // Cache DialogueUI
         dialogueUI = FindObjectOfType<DialogueUI>();
+        conversationButton.onClick.AddListener(OnConversation);
+
     }
 
-    /// <summary>
-    /// Toggles the claim selection panel each time Interrogate is clicked.
-    /// </summary>
     public void OnInterrogate()
     {
+
         if (isTransitioning || currentIndex >= politicians.Length)
             return;
 
-        // Toggle panel visibility
         bool isOpen = claimSelectionPanel.activeSelf;
         claimSelectionPanel.SetActive(!isOpen);
         if (isOpen)
@@ -101,6 +110,11 @@ public class VoteManager : MonoBehaviour
         var current = politicians[currentIndex];
         for (int i = 0; i < claimButtons.Length; i++)
         {
+            if (i < current.claimButtonTexts.Length)
+            {
+                claimButtonTextElements[i].text = current.claimButtonTexts[i];
+            }
+
             bool unlocked = current.claimUnlocked != null
                             && i < current.claimUnlocked.Length
                             && current.claimUnlocked[i];
@@ -110,9 +124,22 @@ public class VoteManager : MonoBehaviour
 
     private void OnSelectClaim(int idx)
     {
+        var dialogueUI = FindObjectOfType<DialogueUI>();
+        if (dialogueUI != null)
+        {
+            dialogueUI.ClearDialogue();
+        }
         currentClaimIndex = idx;
         claimSelectionPanel.SetActive(false);
         dialogueUI.onDialogueEnd = ShowDialogueOptions;
+        
+        // Update dialogue option texts
+        var currentPolitician = politicians[currentIndex];
+        agreeButtonText.text = currentPolitician.agreeButtonTexts[idx];
+        disagreeButtonText.text = currentPolitician.disagreeButtonTexts[idx];
+        skillCheckButtonText.text = currentPolitician.skillCheckButtonTexts[idx];
+        conversationButtonText.text = currentPolitician.conversationButtonTexts[idx];
+        
         politicians[currentIndex].TriggerClaimDialogue(idx);
     }
 
@@ -122,30 +149,29 @@ public class VoteManager : MonoBehaviour
         agreeButton.gameObject.SetActive(true);
         disagreeButton.gameObject.SetActive(true);
         skillCheckButton.gameObject.SetActive(true);
+        conversationButton.gameObject.SetActive(true);
         SetDialogueOptionsInteractable(true);
     }
 
-    /// <summary>
-    /// Enables or disables all dialogue option buttons to prevent multiple submissions.
-    /// </summary>
     private void SetDialogueOptionsInteractable(bool interactable)
     {
         agreeButton.interactable = interactable;
         disagreeButton.interactable = interactable;
         skillCheckButton.interactable = interactable;
+        conversationButton.interactable = interactable;
     }
+
 
     private void OnAgree()
     {
         var current = politicians[currentIndex];
-        // Disable further option clicks
         SetDialogueOptionsInteractable(false);
-        // After dialogue ends, hide options and disable this claim
         dialogueUI.onDialogueEnd = () =>
         {
             dialogueOptionsPanel.SetActive(false);
             if (current.claimUnlocked != null && currentClaimIndex >= 0 && currentClaimIndex < current.claimUnlocked.Length)
                 current.claimUnlocked[currentClaimIndex] = false;
+            current.ResetConversationTracker(currentClaimIndex);
         };
         current.TriggerAgreeDialogue(currentClaimIndex);
     }
@@ -161,6 +187,7 @@ public class VoteManager : MonoBehaviour
             dialogueOptionsPanel.SetActive(false);
             if (current.claimUnlocked != null && currentClaimIndex >= 0 && currentClaimIndex < current.claimUnlocked.Length)
                 current.claimUnlocked[currentClaimIndex] = false;
+                current.ResetConversationTracker(currentClaimIndex);
         };
         current.TriggerDisagreeDialogue(currentClaimIndex);
     }
@@ -180,6 +207,7 @@ public class VoteManager : MonoBehaviour
             dialogueOptionsPanel.SetActive(false);
             if (current.claimUnlocked != null && currentClaimIndex >= 0 && currentClaimIndex < current.claimUnlocked.Length)
                 current.claimUnlocked[currentClaimIndex] = false;
+                current.ResetConversationTracker(currentClaimIndex);
         };
 
         if (success)
@@ -188,8 +216,20 @@ public class VoteManager : MonoBehaviour
             current.TriggerSkillFailDialogue(currentClaimIndex);
     }
 
+    private void OnConversation()
+    {
+        var current = politicians[currentIndex];
+        SetDialogueOptionsInteractable(false);
+        dialogueUI.onDialogueEnd = () =>
+        {
+            SetDialogueOptionsInteractable(true);
+        };
+        current.TriggerConversationDialogue(currentClaimIndex);
+    }
+
     public void OnAccept()
     {
+        FindObjectOfType<DialogueUI>()?.ClearDialogue();
         if (isTransitioning) return;
         isTransitioning = true;
 
@@ -212,6 +252,7 @@ public class VoteManager : MonoBehaviour
 
     public void OnReject()
     {
+        FindObjectOfType<DialogueUI>()?.ClearDialogue();
         if (isTransitioning) return;
         isTransitioning = true;
 
