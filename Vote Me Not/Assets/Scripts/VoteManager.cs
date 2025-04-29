@@ -9,11 +9,20 @@ using UnityEngine.UI;
 using System.Collections;
 using TMPro;
 
+[System.Serializable]
+public class DialogueNode
+{
+    public string[] optionTexts;
+    public bool[] isSkillCheck;
+    public int[] nextNodes;
+    public bool isExitNode;
+}
+
 public class VoteManager : MonoBehaviour
 {
     [Header("Politicians Setup")]
     public Politician[] politicians;
-    private int currentIndex = 0;
+    public int currentIndex = 0;
 
     [Header("Ethics Meter Settings")]
     public int ethicsMeter = 50;
@@ -33,31 +42,54 @@ public class VoteManager : MonoBehaviour
     public Button interrogateButton;
     public GameObject claimSelectionPanel;
     public Button[] claimButtons;
+    public TMP_Text[] claimButtonTextElements;
+
+    [Header("Dialogue Options UI")]
     public GameObject dialogueOptionsPanel;
     public Button agreeButton;
     public Button disagreeButton;
     public Button skillCheckButton;
     public Button conversationButton;
-
-    [Header("Text References")]
-    public TMP_Text[] claimButtonTextElements;
     public TMP_Text agreeButtonText;
     public TMP_Text disagreeButtonText;
     public TMP_Text skillCheckButtonText;
     public TMP_Text conversationButtonText;
 
+    [Header("Question Tree UI")]
+    public GameObject questionOptionsPanel;
+    public Button questionAgreeButton;
+    public Button questionDisagreeButton;
+    public Button questionSkillCheckButton;
+    public Button questionConversationButton;
+    public TMP_Text questionAgreeButtonText;
+    public TMP_Text questionDisagreeButtonText;
+    public TMP_Text questionSkillCheckButtonText;
+    public TMP_Text questionConversationButtonText;
+    public Button[] questionButtons;
+
     [Header("Skill Check Settings")]
     [Tooltip("Chance (0-100) to succeed the speech skill check.")]
     public int speechSkill = 50;
+
+    [Header("Skill Check Feedback Text")]
+    public TMP_Text successText;
+    public TMP_Text failText;
+
+    [Header("Question Dialogue Tree State")]
+    private int currentNodeIndex = -1;
 
     private DialogueUI dialogueUI;
     private Image fadeImage;
     private bool isTransitioning = false;
     private int currentClaimIndex = -1;
 
+    private bool isOption2ButtonPressed = false;
+
+    private bool[] skillCheckDisabled;
+
     void Start()
     {
-        // Fade initialization
+        // Fade init
         fadeImage = fadePanel.GetComponent<Image>();
         if (fadeImage != null)
         {
@@ -67,14 +99,14 @@ public class VoteManager : MonoBehaviour
         }
         fadePanel.SetActive(false);
 
-        // Activate only the first politician
+        // Activate first politician only
         for (int i = 0; i < politicians.Length; i++)
             politicians[i].gameObject.SetActive(i == currentIndex);
 
-        // Hook up Interrogate button
+        // Setup Interrogate
         interrogateButton.onClick.AddListener(OnInterrogate);
 
-        // Prepare Claim selection UI (initially hidden)
+        // Setup claim buttons (hidden)
         claimSelectionPanel.SetActive(false);
         for (int i = 0; i < claimButtons.Length; i++)
         {
@@ -83,148 +115,267 @@ public class VoteManager : MonoBehaviour
             claimButtons[i].onClick.AddListener(() => OnSelectClaim(idx));
         }
 
-        // Prepare Dialogue options UI (initially hidden)
+        // Setup main options (hidden)
         dialogueOptionsPanel.SetActive(false);
         agreeButton.onClick.AddListener(OnAgree);
-        disagreeButton.onClick.AddListener(OnDisagree);
+        disagreeButton.onClick.AddListener(OnQuestion);
         skillCheckButton.onClick.AddListener(OnSkillCheck);
-
-        // Cache DialogueUI
-        dialogueUI = FindObjectOfType<DialogueUI>();
         conversationButton.onClick.AddListener(OnConversation);
 
+        // Setup question-tree options (hidden)
+        questionOptionsPanel.SetActive(false);
+        questionAgreeButton.onClick.AddListener(() => HandleQuestionResponse(0));
+        questionDisagreeButton.onClick.AddListener(() => HandleQuestionResponse(1));
+        questionSkillCheckButton.onClick.AddListener(() => HandleQuestionResponse(2));
+        questionConversationButton.onClick.AddListener(() => HandleQuestionResponse(3));
+
+        // DialogueUI cache
+        dialogueUI = FindObjectOfType<DialogueUI>();
+
+        // Hide feedback
+        successText?.gameObject.SetActive(false);
+        failText?.gameObject.SetActive(false);
+
+        questionButtons = new[] {
+            questionAgreeButton,
+            questionDisagreeButton,
+            questionSkillCheckButton,
+            questionConversationButton
+        };
     }
 
     public void OnInterrogate()
     {
-
         if (isTransitioning || currentIndex >= politicians.Length)
             return;
 
-        bool isOpen = claimSelectionPanel.activeSelf;
-        claimSelectionPanel.SetActive(!isOpen);
-        if (isOpen)
-            return;
+        bool open = claimSelectionPanel.activeSelf;
+        claimSelectionPanel.SetActive(!open);
+        if (open) return;
 
-        // Populate unlocked claim buttons
         var current = politicians[currentIndex];
         for (int i = 0; i < claimButtons.Length; i++)
         {
             if (i < current.claimButtonTexts.Length)
-            {
                 claimButtonTextElements[i].text = current.claimButtonTexts[i];
-            }
 
-            bool unlocked = current.claimUnlocked != null
-                            && i < current.claimUnlocked.Length
-                            && current.claimUnlocked[i];
+            bool unlocked = current.claimUnlocked != null && i < current.claimUnlocked.Length && current.claimUnlocked[i];
             claimButtons[i].gameObject.SetActive(unlocked);
         }
     }
 
     private void OnSelectClaim(int idx)
     {
-        var dialogueUI = FindObjectOfType<DialogueUI>();
-        if (dialogueUI != null)
-        {
-            dialogueUI.ClearDialogue();
-        }
+        dialogueUI?.ClearDialogue();
         currentClaimIndex = idx;
         claimSelectionPanel.SetActive(false);
         dialogueUI.onDialogueEnd = ShowDialogueOptions;
-        
-        // Update dialogue option texts
-        var currentPolitician = politicians[currentIndex];
-        agreeButtonText.text = currentPolitician.agreeButtonTexts[idx];
-        disagreeButtonText.text = currentPolitician.disagreeButtonTexts[idx];
-        skillCheckButtonText.text = currentPolitician.skillCheckButtonTexts[idx];
-        conversationButtonText.text = currentPolitician.conversationButtonTexts[idx];
-        
-        politicians[currentIndex].TriggerClaimDialogue(idx);
+
+        // Set up main buttons text
+        var curr = politicians[currentIndex];
+        agreeButtonText.text = curr.agreeButtonTexts[idx];
+        disagreeButtonText.text = curr.disagreeButtonTexts[idx];
+        skillCheckButtonText.text = curr.skillCheckButtonTexts[idx];
+        conversationButtonText.text = curr.conversationButtonTexts[idx];
+
+        curr.TriggerClaimDialogue(idx);
     }
 
     private void ShowDialogueOptions()
     {
+        // hide question UI
+        questionOptionsPanel.SetActive(false);
+
+        // show main UI
         dialogueOptionsPanel.SetActive(true);
-        agreeButton.gameObject.SetActive(true);
-        disagreeButton.gameObject.SetActive(true);
-        skillCheckButton.gameObject.SetActive(true);
-        conversationButton.gameObject.SetActive(true);
-        SetDialogueOptionsInteractable(true);
+        SetMainButtons(true);
     }
 
-    private void SetDialogueOptionsInteractable(bool interactable)
+    private void SetMainButtons(bool canInteract)
     {
-        agreeButton.interactable = interactable;
-        disagreeButton.interactable = interactable;
-        skillCheckButton.interactable = interactable;
-        conversationButton.interactable = interactable;
+        agreeButton.interactable = canInteract;
+        disagreeButton.interactable = canInteract;
+        skillCheckButton.interactable = canInteract;
+        conversationButton.interactable = canInteract;
     }
 
+    private void ShowQuestionOptions()
+    {
+        dialogueOptionsPanel.SetActive(false);
+        questionOptionsPanel.SetActive(true);
+        SetQuestionButtons(true);
+        UpdateQuestionButtons();
+    }
+
+    private void SetQuestionButtons(bool canInteract)
+    {
+        questionAgreeButton.interactable = canInteract;
+        questionDisagreeButton.interactable = canInteract;
+        questionSkillCheckButton.interactable = canInteract;
+        questionConversationButton.interactable = canInteract;
+    }
+
+    private void UpdateQuestionButtons()
+    {
+        var curr = politicians[currentIndex];
+        var node = curr.questionTrees[currentClaimIndex].nodes[currentNodeIndex];
+
+        // reset disabled-flags on node change
+        if (skillCheckDisabled == null || skillCheckDisabled.Length != questionButtons.Length)
+            skillCheckDisabled = new bool[questionButtons.Length];
+        else
+            for (int i = 0; i < skillCheckDisabled.Length; i++)
+                skillCheckDisabled[i] = false;
+
+        // hide all
+        for (int i = 0; i < questionButtons.Length; i++)
+            questionButtons[i].gameObject.SetActive(false);
+
+        // show + label relevant ones
+        for (int i = 0; i < node.optionTexts.Length; i++)
+        {
+            questionButtons[i].gameObject.SetActive(true);
+            switch (i)
+            {
+                case 0: questionAgreeButtonText.text       = node.optionTexts[i]; break;
+                case 1: questionDisagreeButtonText.text    = node.optionTexts[i]; break;
+                case 2: questionSkillCheckButtonText.text  = node.optionTexts[i]; break;
+                case 3: questionConversationButtonText.text= node.optionTexts[i]; break;
+            }
+
+            // if it’s a skill-check, apply per-node disabled state
+            if (node.isSkillCheck[i])
+                questionButtons[i].interactable = !skillCheckDisabled[i];
+            else
+                questionButtons[i].interactable = true;
+        }
+    }
+
+    private void HandleQuestionResponse(int optionIndex)
+    {
+        var curr = politicians[currentIndex];
+        var node = curr.questionTrees[currentClaimIndex].nodes[currentNodeIndex];
+
+        // 1) If skill-check, disable *this* button only
+        if (node.isSkillCheck[optionIndex])
+        {
+            bool success = Random.Range(0, 100) < speechSkill;
+            ShowSkillFeedback(success);
+            curr.TriggerSkillResponse(currentClaimIndex, currentNodeIndex, optionIndex, success);
+
+            questionButtons[optionIndex].interactable = false;
+            skillCheckDisabled[optionIndex] = true;
+        }
+        else
+        {
+            curr.TriggerQuestionResponse(currentClaimIndex, currentNodeIndex, optionIndex);
+        }
+
+        // 2) exit-node logic only on option 0
+        if (node.isExitNode && optionIndex == 0)
+        {
+            questionOptionsPanel.SetActive(false);
+            dialogueOptionsPanel.SetActive(true);
+            SetMainButtons(true);
+            disagreeButton.interactable = false;
+            return;
+        }
+
+        // 3) move to next or stay
+        int next = node.nextNodes[optionIndex];
+        if (next >= 0)
+            currentNodeIndex = next;
+
+        dialogueUI.onDialogueEnd = ShowQuestionOptions;
+    }
 
     private void OnAgree()
     {
-        var current = politicians[currentIndex];
-        SetDialogueOptionsInteractable(false);
-        dialogueUI.onDialogueEnd = () =>
-        {
+        var curr = politicians[currentIndex];
+        SetMainButtons(false);
+        dialogueUI.onDialogueEnd = () => {
             dialogueOptionsPanel.SetActive(false);
-            if (current.claimUnlocked != null && currentClaimIndex >= 0 && currentClaimIndex < current.claimUnlocked.Length)
-                current.claimUnlocked[currentClaimIndex] = false;
-            current.ResetConversationTracker(currentClaimIndex);
+            if (curr.claimUnlocked != null && currentClaimIndex >=0 && currentClaimIndex < curr.claimUnlocked.Length)
+                curr.claimUnlocked[currentClaimIndex] = false;
+            curr.ResetConversationTracker(currentClaimIndex);
         };
-        current.TriggerAgreeDialogue(currentClaimIndex);
+        curr.TriggerAgreeDialogue(currentClaimIndex);
     }
 
-    private void OnDisagree()
+    private void OnQuestion()
     {
-        var current = politicians[currentIndex];
-        // Disable further option clicks
-        SetDialogueOptionsInteractable(false);
-        // After dialogue ends, hide options and disable this claim
-        dialogueUI.onDialogueEnd = () =>
-        {
-            dialogueOptionsPanel.SetActive(false);
-            if (current.claimUnlocked != null && currentClaimIndex >= 0 && currentClaimIndex < current.claimUnlocked.Length)
-                current.claimUnlocked[currentClaimIndex] = false;
-                current.ResetConversationTracker(currentClaimIndex);
-        };
-        current.TriggerDisagreeDialogue(currentClaimIndex);
+        isOption2ButtonPressed = true;
+        var curr = politicians[currentIndex];
+        SetMainButtons(false);
+        if (currentClaimIndex >=0)
+            curr.claimUnlocked[currentClaimIndex] = false;
+
+        currentNodeIndex = 0;
+        dialogueUI.onDialogueEnd = ShowQuestionOptions;
+        curr.TriggerQuestionDialogue(currentClaimIndex, currentNodeIndex);
     }
 
     private void OnSkillCheck()
     {
-        var current = politicians[currentIndex];
-        // Disable further option clicks
-        SetDialogueOptionsInteractable(false);
-        // Hide dialogue options panel
+        var curr = politicians[currentIndex];
+        SetMainButtons(false);
         dialogueOptionsPanel.SetActive(false);
-        bool success = Random.Range(0, 100) < speechSkill;
 
-        // After skill-check dialogue ends, hide options and disable this claim
-        dialogueUI.onDialogueEnd = () =>
-        {
+        bool success = Random.Range(0,100) < speechSkill;
+        ShowSkillFeedback(success);
+
+        dialogueUI.onDialogueEnd = () => {
             dialogueOptionsPanel.SetActive(false);
-            if (current.claimUnlocked != null && currentClaimIndex >= 0 && currentClaimIndex < current.claimUnlocked.Length)
-                current.claimUnlocked[currentClaimIndex] = false;
-                current.ResetConversationTracker(currentClaimIndex);
+            if (curr.claimUnlocked != null && currentClaimIndex >=0 && currentClaimIndex < curr.claimUnlocked.Length)
+                curr.claimUnlocked[currentClaimIndex] = false;
+            curr.ResetConversationTracker(currentClaimIndex);
         };
 
-        if (success)
-            current.TriggerSkillSuccessDialogue(currentClaimIndex);
-        else
-            current.TriggerSkillFailDialogue(currentClaimIndex);
+        if (success) curr.TriggerSkillSuccessDialogue(currentClaimIndex);
+        else curr.TriggerSkillFailDialogue(currentClaimIndex);
+    }
+
+    private void ShowSkillFeedback(bool success)
+    {
+        if (success) successText?.gameObject.SetActive(true);
+        else failText?.gameObject.SetActive(true);
+        StartCoroutine(HideSkillFeedback(success));
+    }
+
+    private IEnumerator HideSkillFeedback(bool success)
+    {
+        yield return new WaitForSeconds(2f);
+        if (success) successText?.gameObject.SetActive(false);
+        else failText?.gameObject.SetActive(false);
     }
 
     private void OnConversation()
     {
-        var current = politicians[currentIndex];
-        SetDialogueOptionsInteractable(false);
-        dialogueUI.onDialogueEnd = () =>
-        {
-            SetDialogueOptionsInteractable(true);
-        };
-        current.TriggerConversationDialogue(currentClaimIndex);
+        // only call if a claim is active
+        if (currentClaimIndex < 0) return;
+
+        var curr = politicians[currentIndex];
+        ButtonDisabler();
+
+        dialogueUI.onDialogueEnd = () => ButtonActivator();
+
+        curr.TriggerConversationDialogue(currentClaimIndex);
+    }
+
+    public void ButtonActivator()
+    {
+        agreeButton.gameObject.SetActive(true);
+        disagreeButton.gameObject.SetActive(true);
+        skillCheckButton.gameObject.SetActive(true);
+        conversationButton.gameObject.SetActive(true);
+    }
+
+    public void ButtonDisabler()
+    {
+        agreeButton.gameObject.SetActive(false);
+        disagreeButton.gameObject.SetActive(false);
+        skillCheckButton.gameObject.SetActive(false);
+        conversationButton.gameObject.SetActive(false);
     }
 
     public void OnAccept()
@@ -313,3 +464,6 @@ public class VoteManager : MonoBehaviour
         fadePanel.SetActive(false);
     }
 }
+ 
+
+

@@ -7,70 +7,89 @@ public struct ConversationDialogue
     public DialogueContentSO[] repeatables;
 }
 
+[System.Serializable]
+public struct QuestionNode
+{
+    public string[] optionTexts;
+    public bool[]   isSkillCheck;
+    public int[]    nextNodes;
+    public bool     isExitNode;   // if this node ends the tree
+}
+
+[System.Serializable]
+public struct QuestionDialogue
+{
+    [Tooltip("Dialogue when entering this node.")]
+    public DialogueContentSO entryDialogue;
+
+    [Tooltip("Dialogue responses for each option (non-skill-check). Indexed by option index.")]
+    public DialogueContentSO[] responseDialogues;
+
+    [Tooltip("Dialogue on skill-check success for each option. Indexed by option index.")]
+    public DialogueContentSO[] skillSuccessDialogues;
+
+    [Tooltip("Dialogue on skill-check failure for each option. Indexed by option index.")]
+    public DialogueContentSO[] skillFailDialogues;
+}
+
+[System.Serializable]
+public class QuestionTree
+{
+    public QuestionNode[] nodes;                // branching logic per node
+    public QuestionDialogue[] nodeDialogues;    // per-node dialogue content
+}
+
 public class Politician : MonoBehaviour
 {
-    // Politician's display name (set in the Inspector)
     public string npcName;
-
     public AffiliationGlobalEnum affiliation;
-    
 
     [Header("Dialogue Settings")]
-    public DialogueContentSO initialDialogueContent;    // Initial dialogue (claim presentation)
-    public DialogueContentSO[] claimDialogueContents;     // Dialogue asset per claim (for interrogation)
+    public DialogueContentSO initialDialogueContent;
+    public DialogueContentSO[] claimDialogueContents;
 
-    [Header("Skill-Check Dialogue")]
-    [Tooltip("Played when speech skill check succeeds for each claim index.")]
+    [Header("Skill-Check Dialogue (Claim-level)")]
     public DialogueContentSO[] skillSuccessDialogueContents;
-    [Tooltip("Played when speech skill check fails for each claim index.")]
     public DialogueContentSO[] skillFailDialogueContents;
 
-    [Header("Response Dialogues")]
-    [Tooltip("What the NPC says when you AGREE with Claim #i")]
+    [Header("Agree/Disagree Responses")]
     public DialogueContentSO[] agreeResponseContents;
-    [Tooltip("What the NPC says when you DISAGREE with Claim #i")]
     public DialogueContentSO[] disagreeResponseContents;
 
     [Header("Conversation Dialogues")]
     public ConversationDialogue[] conversationDialogues;
 
-
     [Header("Button Text Customization")]
-    [Tooltip("Text for claim buttons (index 0 = Claim 1)")]
-    public string[] claimButtonTexts = new string[3];
+    public string[] claimButtonTexts;
+    public string[] agreeButtonTexts;
+    public string[] disagreeButtonTexts;
+    public string[] skillCheckButtonTexts;
+    public string[] conversationButtonTexts;
 
-    [Header("Dialogue Option Texts")]
-    [Tooltip("Texts for agree button per claim (index 0 = Claim 1)")]
-    public string[] agreeButtonTexts = new string[3];
-    [Tooltip("Texts for disagree button per claim")]
-    public string[] disagreeButtonTexts = new string[3];
-    [Tooltip("Texts for skill check button per claim")]
-    public string[] skillCheckButtonTexts = new string[3];
-    [Tooltip("Texts for conversation button per claim")]
-    public string[] conversationButtonTexts = new string[3];
+    [Header("Accept/Reject Button Dialogue")]
+    public DialogueContentSO arEnableDialogueContent;
+    public DialogueContentSO arDisableDialogueContent;
 
-    private bool[] initialConversationPlayed;
+    [Header("Per-Claim Question Trees")]
+    public QuestionTree[] questionTrees;
 
-
-
-    // Tracks which claims have been unlocked; initialized in Awake.
+    // Tracks which claims have been unlocked
     public bool[] claimUnlocked;
+    private bool[] initialConversationPlayed;
 
     void Awake()
     {
-        if (claimDialogueContents != null && claimDialogueContents.Length > 0)
+        // Initialize claim unlocks
+        if (claimDialogueContents != null)
         {
             claimUnlocked = new bool[claimDialogueContents.Length];
             for (int i = 0; i < claimUnlocked.Length; i++)
                 claimUnlocked[i] = false;
         }
-
         // Initialize conversation tracker
         initialConversationPlayed = new bool[conversationDialogues != null ? conversationDialogues.Length : 0];
         for (int i = 0; i < initialConversationPlayed.Length; i++)
-        {
             initialConversationPlayed[i] = false;
-        }
     }
 
     void Start()
@@ -78,164 +97,118 @@ public class Politician : MonoBehaviour
         TriggerInitialDialogue();
     }
 
-    // Called by the file selection system to unlock a specific claim.
     public void UnlockClaim(int claimIndex)
     {
         if (claimUnlocked != null && claimIndex >= 0 && claimIndex < claimUnlocked.Length)
         {
             claimUnlocked[claimIndex] = true;
-            Debug.Log("Claim " + (claimIndex + 1) + " unlocked for " + npcName);
+            Debug.Log($"Claim {claimIndex+1} unlocked for {npcName}");
         }
     }
 
     public void TriggerInitialDialogue()
     {
-        if (initialDialogueContent == null)
-        {
-            Debug.LogWarning("No initial dialogue content assigned to " + npcName);
-            return;
-        }
-
-        DialogueUI dialogueUI = FindObjectOfType<DialogueUI>();
-        if (dialogueUI != null)
-        {
-            dialogueUI.SetSpeakerName(npcName);
-            dialogueUI.onDialogueEnd = () =>
-            {
-                if (claimUnlocked != null && claimUnlocked.Length > 0 && claimUnlocked[0])
-                    TriggerClaimDialogue(0);
-            };
-            Debug.Log("Triggering initial dialogue for " + npcName);
-            dialogueUI.StartDialogue(initialDialogueContent);
-        }
-        else
-        {
-            Debug.LogError("DialogueUI not found in the scene.");
-        }
+        if (initialDialogueContent == null) return;
+        var ui = FindObjectOfType<DialogueUI>();
+        ui.SetSpeakerName(npcName);
+        ui.onDialogueEnd = () => {
+            if (claimUnlocked != null && claimUnlocked.Length > 0 && claimUnlocked[0])
+                TriggerClaimDialogue(0);
+        };
+        ui.StartDialogue(initialDialogueContent);
     }
 
     public void TriggerClaimDialogue(int claimIndex)
     {
-        if (claimDialogueContents == null || claimIndex < 0 || claimIndex >= claimDialogueContents.Length)
-        {
-            Debug.LogWarning("Invalid claim dialogue content for " + npcName);
-            return;
-        }
-        var claimDialogue = claimDialogueContents[claimIndex];
-        if (claimDialogue == null)
-        {
-            Debug.LogWarning($"No dialogue content for claim {claimIndex} on {npcName}");
-            return;
-        }
+        if (claimDialogueContents == null || claimIndex < 0 || claimIndex >= claimDialogueContents.Length) return;
+        var content = claimDialogueContents[claimIndex];
+        var ui = FindObjectOfType<DialogueUI>();
+        ui.SetSpeakerName(npcName);
+        ui.StartDialogue(content);
+    }
 
-        var dialogueUI = FindObjectOfType<DialogueUI>();
-        if (dialogueUI != null)
-        {
-            dialogueUI.SetSpeakerName(npcName);
-            Debug.Log($"Triggering claim dialogue for claim {claimIndex + 1} on {npcName}");
-            dialogueUI.StartDialogue(claimDialogue);
-        }
-        else
-        {
-            Debug.LogError("DialogueUI not found in the scene.");
-        }
+    public void TriggerAgreeDialogue(int claimIndex)
+    {
+        if (agreeResponseContents == null || claimIndex < 0 || claimIndex >= agreeResponseContents.Length) return;
+        var ui = FindObjectOfType<DialogueUI>();
+        ui.SetSpeakerName(npcName);
+        ui.StartDialogue(agreeResponseContents[claimIndex]);
+    }
+
+    public void TriggerDisagreeDialogue(int claimIndex)
+    {
+        if (disagreeResponseContents == null || claimIndex < 0 || claimIndex >= disagreeResponseContents.Length) return;
+        var ui = FindObjectOfType<DialogueUI>();
+        ui.SetSpeakerName(npcName);
+        ui.StartDialogue(disagreeResponseContents[claimIndex]);
+    }
+
+    public void TriggerSkillSuccessDialogue(int claimIndex)
+    {
+        if (skillSuccessDialogueContents == null || claimIndex < 0 || claimIndex >= skillSuccessDialogueContents.Length) return;
+        var ui = FindObjectOfType<DialogueUI>();
+        ui.SetSpeakerName(npcName);
+        ui.StartDialogue(skillSuccessDialogueContents[claimIndex]);
+    }
+
+    public void TriggerSkillFailDialogue(int claimIndex)
+    {
+        if (skillFailDialogueContents == null || claimIndex < 0 || claimIndex >= skillFailDialogueContents.Length) return;
+        var ui = FindObjectOfType<DialogueUI>();
+        ui.SetSpeakerName(npcName);
+        ui.StartDialogue(skillFailDialogueContents[claimIndex]);
     }
 
     public void TriggerConversationDialogue(int claimIndex)
     {
         if (conversationDialogues == null || claimIndex < 0 || claimIndex >= conversationDialogues.Length)
         {
-            Debug.LogWarning("Invalid conversation index for " + npcName);
+            Debug.LogWarning($"Invalid conversation index for {npcName}: {claimIndex}");
             return;
         }
-
-        ConversationDialogue conv = conversationDialogues[claimIndex];
-        DialogueContentSO content = null;
-
-        if (!initialConversationPlayed[claimIndex])
-        {
-            content = conv.initial;
-            initialConversationPlayed[claimIndex] = true;
-        }
-        else
-        {
-            if (conv.repeatables == null || conv.repeatables.Length == 0)
-            {
-                Debug.LogWarning("No repeatable dialogues for claim " + claimIndex + " on " + npcName);
-                return;
-            }
-            int randomIdx = Random.Range(0, conv.repeatables.Length);
-            content = conv.repeatables[randomIdx];
-        }
-
-        if (content == null)
-        {
-            Debug.LogWarning("Conversation content missing for claim " + claimIndex + " on " + npcName);
-            return;
-        }
-
-        DialogueUI dialogueUI = FindObjectOfType<DialogueUI>();
-        if (dialogueUI != null)
-        {
-            dialogueUI.SetSpeakerName(npcName);
-            dialogueUI.StartDialogue(content);
-        }
+        var conv = conversationDialogues[claimIndex];
+        var content = !initialConversationPlayed[claimIndex]
+            ? conv.initial
+            : conv.repeatables[Random.Range(0, conv.repeatables.Length)];
+        initialConversationPlayed[claimIndex] = true;
+        var ui = FindObjectOfType<DialogueUI>();
+        ui.SetSpeakerName(npcName);
+        ui.StartDialogue(content);
     }
 
-        
-    public void TriggerAgreeDialogue(int claimIndex)
+    public void TriggerQuestionDialogue(int claimIndex, int nodeIndex)
     {
-        TriggerCustomDialogue(agreeResponseContents, claimIndex, "agree");
+        var tree = questionTrees[claimIndex];
+        var dialogue = tree.nodeDialogues[nodeIndex];
+        var ui = FindObjectOfType<DialogueUI>();
+        ui.SetSpeakerName(npcName);
+        ui.StartDialogue(dialogue.entryDialogue);
     }
 
-    public void TriggerDisagreeDialogue(int claimIndex)
+    public void TriggerQuestionResponse(int claimIndex, int nodeIndex, int optionIndex)
     {
-        TriggerCustomDialogue(disagreeResponseContents, claimIndex, "disagree");
+        var tree = questionTrees[claimIndex];
+        var dialogue = tree.nodeDialogues[nodeIndex];
+        var content = dialogue.responseDialogues[optionIndex];
+        var ui = FindObjectOfType<DialogueUI>();
+        ui.SetSpeakerName(npcName);
+        ui.StartDialogue(content);
     }
 
-
-    public void TriggerSkillSuccessDialogue(int claimIndex)
+    public void TriggerSkillResponse(int claimIndex, int nodeIndex, int optionIndex, bool success)
     {
-        TriggerCustomDialogue(skillSuccessDialogueContents, claimIndex, "success");
+        var tree = questionTrees[claimIndex];
+        var dialogue = tree.nodeDialogues[nodeIndex];
+        var array = success ? dialogue.skillSuccessDialogues : dialogue.skillFailDialogues;
+        var content = array[optionIndex];
+        var ui = FindObjectOfType<DialogueUI>();
+        ui.SetSpeakerName(npcName);
+        ui.StartDialogue(content);
     }
-
-    public void TriggerSkillFailDialogue(int claimIndex)
-    {
-        TriggerCustomDialogue(skillFailDialogueContents, claimIndex, "failure");
-    }
-
-    private void TriggerCustomDialogue(DialogueContentSO[] dialogues, int index, string type)
-    {
-        if (dialogues == null || index < 0 || index >= dialogues.Length)
-        {
-            Debug.LogWarning($"Missing skill-check dialogue ({type}) at index {index} for {npcName}");
-            return;
-        }
-        var content = dialogues[index];
-        if (content == null)
-        {
-            Debug.LogWarning($"Null DialogueContentSO for skill-check ({type}) at index {index} on {npcName}");
-            return;
-        }
-        var dialogueUI = FindObjectOfType<DialogueUI>();
-        if (dialogueUI != null)
-        {
-            dialogueUI.SetSpeakerName(npcName);
-            Debug.Log($"Triggering skill-check {type} dialogue for claim {index + 1} on {npcName}");
-            dialogueUI.StartDialogue(content);
-        }
-        else
-        {
-            Debug.LogError("DialogueUI not found in the scene.");
-        }
-    }
-
 
     public void ResetConversationTracker(int claimIndex)
     {
         if (claimIndex >= 0 && claimIndex < initialConversationPlayed.Length)
-        {
             initialConversationPlayed[claimIndex] = false;
-        }
     }
 }
