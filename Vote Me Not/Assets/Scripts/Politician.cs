@@ -1,4 +1,8 @@
 using UnityEngine;
+using UnityEngine.UI;
+
+
+public enum SkillType { Speech, Scholar }
 
 [System.Serializable]
 public struct ConversationDialogue
@@ -14,6 +18,8 @@ public struct QuestionNode
     public bool[]   isSkillCheck;
     public int[]    nextNodes;
     public bool     isExitNode;   // if this node ends the tree
+
+    public SkillType[] skillCheckTypes;
 }
 
 [System.Serializable]
@@ -43,6 +49,35 @@ public class Politician : MonoBehaviour
 {
     public string npcName;
     public AffiliationGlobalEnum affiliation;
+
+
+    [Header("Skill Check Modifiers")]
+    [Tooltip("Positive or negative modifier in % for Speech skill-checks (e.g. +10 or -20)")]
+    public float speechModifierPercent = 0f;
+
+    [Tooltip("Positive or negative modifier in % for Scholar skill-checks (e.g. +10 or -20)")]
+    public float scholarModifierPercent = 0f;
+
+    [Tooltip("Base NPC difficulty for skill checks; higher = tougher (e.g. 50–150)")]
+    public float challengeLevel = 100f;
+
+
+    [Header("Hard Skill Type")]
+    [Tooltip("Which stat to use when the player hits the MAIN Skill-Check Button")]
+    public SkillType hardSkillType = SkillType.Speech;
+
+    [Header("Portrait Settings")]
+    [Tooltip("The SpriteRenderer on your world-space politician object")]
+    public SpriteRenderer portraitRenderer;
+    [Tooltip("Default sprite to revert to")]
+    public Sprite originalSprite;
+    [Tooltip("Sprite to show on skill success")]
+    public Sprite skillSuccessSprite;
+    [Tooltip("Sprite to show on skill failure")]
+    public Sprite skillFailSprite;
+    [Tooltip("Animator controlling blinking on the portraitRenderer")]
+    public Animator portraitAnimator;
+
 
     [Header("Dialogue Settings")]
     public DialogueContentSO initialDialogueContent;
@@ -90,11 +125,31 @@ public class Politician : MonoBehaviour
         initialConversationPlayed = new bool[conversationDialogues != null ? conversationDialogues.Length : 0];
         for (int i = 0; i < initialConversationPlayed.Length; i++)
             initialConversationPlayed[i] = false;
+
+        
+        if (portraitRenderer != null && originalSprite == null)
+            originalSprite = portraitRenderer.sprite;
     }
 
     void Start()
     {
         TriggerInitialDialogue();
+    }
+
+    public void ShowSkillResult(bool success)
+    {
+        if (portraitAnimator != null)
+            portraitAnimator.enabled = false;
+        if (portraitRenderer != null)
+            portraitRenderer.sprite = success ? skillSuccessSprite : skillFailSprite;
+    }
+
+    public void RevertPortrait()
+    {
+        if (portraitRenderer != null)
+            portraitRenderer.sprite = originalSprite;
+        if (portraitAnimator != null)
+            portraitAnimator.enabled = true;
     }
 
     public void UnlockClaim(int claimIndex)

@@ -9,6 +9,7 @@ using UnityEngine.UI;
 using System.Collections;
 using TMPro;
 
+
 [System.Serializable]
 public class DialogueNode
 {
@@ -18,8 +19,14 @@ public class DialogueNode
     public bool isExitNode;
 }
 
+
 public class VoteManager : MonoBehaviour
 {
+
+    [Header("Energy System")]
+    public EnergySystem energySystem;
+
+    
     [Header("Politicians Setup")]
     public Politician[] politicians;
     public int currentIndex = 0;
@@ -70,10 +77,25 @@ public class VoteManager : MonoBehaviour
     [Header("Skill Check Settings")]
     [Tooltip("Chance (0-100) to succeed the speech skill check.")]
     public int speechSkill = 50;
+    [Tooltip("Chance (0-100) to succeed the scholar skill check.")]
+    public int scholarSkill = 50;
 
     [Header("Skill Check Feedback Text")]
     public TMP_Text successText;
     public TMP_Text failText;
+
+
+    [Header("Main UI Skill-Icon")]
+    [Tooltip("Image you’ve placed beside the MAIN Skill-Check Button")]
+    public Image mainSkillIcon;
+    [Tooltip("Sprite to show when using Speech")]
+    public Sprite speechIcon;
+    [Tooltip("Sprite to show when using Scholar")]
+    public Sprite scholarIcon;
+
+    [Header("Question UI Skill-Icons")]
+    [Tooltip("One Image per question-button, in the same order as questionButtons[]")]
+    public Image[] questionSkillIcons;
 
     [Header("Question Dialogue Tree State")]
     private int currentNodeIndex = -1;
@@ -179,7 +201,21 @@ public class VoteManager : MonoBehaviour
         conversationButtonText.text = curr.conversationButtonTexts[idx];
 
         curr.TriggerClaimDialogue(idx);
+        UpdateMainSkillIcon();
     }
+
+    private void UpdateMainSkillIcon()
+    {
+        var curr = politicians[currentIndex];
+        if (mainSkillIcon != null)
+        {
+            mainSkillIcon.sprite = (curr.hardSkillType == SkillType.Speech)
+                ? speechIcon
+                : scholarIcon;
+        }
+        else Debug.LogWarning("MainSkillIcon reference is missing on VoteManager.");
+    }
+
 
     private void ShowDialogueOptions()
     {
@@ -217,6 +253,12 @@ public class VoteManager : MonoBehaviour
 
     private void UpdateQuestionButtons()
     {
+        if (questionSkillIcons == null)
+        {
+            Debug.LogWarning("QuestionSkillIcons is null in VoteManager.");
+            return;
+        }
+
         var curr = politicians[currentIndex];
         var node = curr.questionTrees[currentClaimIndex].nodes[currentNodeIndex];
 
@@ -249,6 +291,33 @@ public class VoteManager : MonoBehaviour
             else
                 questionButtons[i].interactable = true;
         }
+
+        for (int i = 0; i < questionSkillIcons.Length; i++)
+        {
+            var iconImage = questionSkillIcons[i];
+            bool isSkill = (node.isSkillCheck != null && i < node.isSkillCheck.Length && node.isSkillCheck[i]);
+
+            if (isSkill && node.skillCheckTypes != null && i < node.skillCheckTypes.Length)
+            {
+                // Set correct sprite
+                var type = node.skillCheckTypes[i];
+                Sprite spriteToUse = (type == SkillType.Speech) ? speechIcon : scholarIcon;
+
+                if (iconImage != null)
+                {
+                    iconImage.sprite = spriteToUse;
+                    iconImage.gameObject.SetActive(true);
+                }
+                else Debug.LogWarning($"questionSkillIcons[{i}] is null.");
+            }
+            else
+            {
+                // Hide non-skill icons
+                if (iconImage != null)
+                    iconImage.gameObject.SetActive(false);
+            }
+        }
+
     }
 
     private void HandleQuestionResponse(int optionIndex)
@@ -259,12 +328,33 @@ public class VoteManager : MonoBehaviour
         // 1) If skill-check, disable *this* button only
         if (node.isSkillCheck[optionIndex])
         {
-            bool success = Random.Range(0, 100) < speechSkill;
+            if (!energySystem.TryUseDNTSkill())
+                return;
+
+            SkillType type = node.skillCheckTypes[optionIndex];
+            float chance = GetSkillChance(type);
+
+            // DEBUG log for DNT
+            Debug.LogError(
+                $"[DNTSkillCheck] type={type} | "
+            + $"chance={chance:0.00}% "
+            + $"(base={(type==SkillType.Speech?speechSkill:scholarSkill)}, "
+            + $"mod={(type==SkillType.Speech?curr.speechModifierPercent:curr.scholarModifierPercent)}%, "
+            + $"challenge={curr.challengeLevel})");
+
+            bool success = Random.value * 100f < chance;
+
             ShowSkillFeedback(success);
-            curr.TriggerSkillResponse(currentClaimIndex, currentNodeIndex, optionIndex, success);
+            curr.ShowSkillResult(success);
+
+            dialogueUI.onDialogueEnd = () => {
+                curr.RevertPortrait();
+                ContinueQuestionFlow(optionIndex);
+            };
 
             questionButtons[optionIndex].interactable = false;
             skillCheckDisabled[optionIndex] = true;
+            curr.TriggerSkillResponse(currentClaimIndex, currentNodeIndex, optionIndex, success);
         }
         else
         {
@@ -286,6 +376,23 @@ public class VoteManager : MonoBehaviour
         if (next >= 0)
             currentNodeIndex = next;
 
+        dialogueUI.onDialogueEnd = ShowQuestionOptions;
+    }
+
+
+    private void ContinueQuestionFlow(int optionIndex)
+    {
+        var node = politicians[currentIndex].questionTrees[currentClaimIndex].nodes[currentNodeIndex];
+        if (node.isExitNode && optionIndex == 0)
+        {
+            questionOptionsPanel.SetActive(false);
+            dialogueOptionsPanel.SetActive(true);
+            SetMainButtons(true);
+            disagreeButton.interactable = false;
+            return;
+        }
+        int next = node.nextNodes[optionIndex];
+        if (next >= 0) currentNodeIndex = next;
         dialogueUI.onDialogueEnd = ShowQuestionOptions;
     }
 
@@ -317,22 +424,40 @@ public class VoteManager : MonoBehaviour
 
     private void OnSkillCheck()
     {
+        if (!energySystem.TryUseHardSkill())
+            return;
+
         var curr = politicians[currentIndex];
         SetMainButtons(false);
         dialogueOptionsPanel.SetActive(false);
 
-        bool success = Random.Range(0,100) < speechSkill;
+        // 1) compute raw chance
+        float rawChance = GetSkillChance(curr.hardSkillType);
+
+        // 2) apply the hard‐check penalty
+        float penalizedChance = Mathf.Clamp(rawChance - 20f, 0f, 100f);
+
+        // DEBUG log for main skill-check
+        Debug.LogError(
+            $"[MainSkillCheck] type={curr.hardSkillType} | raw={rawChance:0.00}% | penalized={penalizedChance:0.00}%");
+
+        // 3) roll against penalized chance
+        bool success = Random.value * 100f < penalizedChance;
+
         ShowSkillFeedback(success);
+        curr.ShowSkillResult(success);
 
         dialogueUI.onDialogueEnd = () => {
+            curr.RevertPortrait();
             dialogueOptionsPanel.SetActive(false);
-            if (curr.claimUnlocked != null && currentClaimIndex >=0 && currentClaimIndex < curr.claimUnlocked.Length)
-                curr.claimUnlocked[currentClaimIndex] = false;
+            curr.claimUnlocked[currentClaimIndex] = false;
             curr.ResetConversationTracker(currentClaimIndex);
         };
 
-        if (success) curr.TriggerSkillSuccessDialogue(currentClaimIndex);
-        else curr.TriggerSkillFailDialogue(currentClaimIndex);
+        if (success)
+            curr.TriggerSkillSuccessDialogue(currentClaimIndex);
+        else
+            curr.TriggerSkillFailDialogue(currentClaimIndex);
     }
 
     private void ShowSkillFeedback(bool success)
@@ -399,6 +524,7 @@ public class VoteManager : MonoBehaviour
             ethicsMeterController?.UpdateEthics(ethicsMeter);
             StartCoroutine(FadeTransition());
         }
+        energySystem.AddEnergy(2);
     }
 
     public void OnReject()
@@ -423,6 +549,26 @@ public class VoteManager : MonoBehaviour
             ethicsMeterController?.UpdateEthics(ethicsMeter);
             StartCoroutine(FadeTransition());
         }
+        energySystem.AddEnergy(2);
+    }
+
+
+    private float GetSkillChance(SkillType type)
+    {
+        // base player stat
+        int baseStat = (type == SkillType.Speech) ? speechSkill : scholarSkill;
+        // grab NPC‐side modifier
+        var npc = politicians[currentIndex];
+        float modPercent = (type == SkillType.Speech)
+            ? npc.speechModifierPercent
+            : npc.scholarModifierPercent;
+        // apply % buff/debuff
+        float effectiveSkill = baseStat * (1f + modPercent / 100f);
+        // challenge scales difficulty
+        float challenge = npc.challengeLevel;
+        // formula → more skill vs. challenge means higher chance
+        float chance = effectiveSkill / (effectiveSkill + challenge) * 100f;
+        return Mathf.Clamp(chance, 0f, 100f);
     }
 
     private IEnumerator FadeTransition()
