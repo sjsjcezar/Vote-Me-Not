@@ -19,15 +19,6 @@ public class StatsPanelToggle : MonoBehaviour
 
     private void Awake()
     {
-        // Validate references
-        if (statsPanel == null) Debug.LogError("StatsPanel reference is missing on " + name);
-        if (openStatsButton == null) Debug.LogError("OpenStatsButton reference is missing on " + name);
-        if (closeStatsButton == null) Debug.LogError("CloseStatsButton reference is missing on " + name);
-        if (speechBaseText == null) Debug.LogError("SpeechBaseText reference is missing on " + name);
-        if (scholarBaseText == null) Debug.LogError("ScholarBaseText reference is missing on " + name);
-        if (speechModText == null) Debug.LogError("SpeechModText reference is missing on " + name);
-        if (scholarModText == null) Debug.LogError("ScholarModText reference is missing on " + name);
-
         openStatsButton.onClick.AddListener(OpenStatsPanel);
         closeStatsButton.onClick.AddListener(CloseStatsPanel);
         statsPanel.SetActive(false);
@@ -38,7 +29,17 @@ public class StatsPanelToggle : MonoBehaviour
         voteManager = FindObjectOfType<VoteManager>();
         if (voteManager == null)
             Debug.LogError("VoteManager not found in scene.");
+        else
+            voteManager.OnStatsUpdated += UpdateStatsUI; // Subscribe to the event
     }
+
+    private void OnDestroy()
+    {
+        // Unsubscribe to prevent memory leaks
+        if (voteManager != null)
+            voteManager.OnStatsUpdated -= UpdateStatsUI;
+    }
+
 
     private void OpenStatsPanel()
     {
@@ -53,39 +54,28 @@ public class StatsPanelToggle : MonoBehaviour
 
     private void UpdateStatsUI()
     {
-        int baseSpeech = voteManager.speechSkill;
-        int baseScholar = voteManager.scholarSkill;
+        // Get current politician's modifiers
+        float politicianSpeechMod = voteManager.NpcSpeechModPercent;
+        float politicianScholarMod = voteManager.NpcScholarModPercent;
 
-        var currentPolitician = voteManager.politicians[voteManager.currentIndex];
-        float speechMod = currentPolitician.speechModifierPercent;
-        float scholarMod = currentPolitician.scholarModifierPercent;
+        // Get active bottle modifier (0 if inactive)
+        float bottleBoost = voteManager.bottleModPercent;
 
-        float effectiveSpeech = baseSpeech * (1f + speechMod / 100f);
-        float effectiveScholar = baseScholar * (1f + scholarMod / 100f);
+        // Calculate total modifiers
+        float totalSpeechMod = politicianSpeechMod + bottleBoost;
+        float totalScholarMod = politicianScholarMod + bottleBoost;
 
-        // Determine if there is a modifier
-        bool speechHasMod = !Mathf.Approximately(speechMod, 0f);
-        bool scholarHasMod = !Mathf.Approximately(scholarMod, 0f);
+        // Update UI texts
+        speechModText.text = $"{totalSpeechMod:+#;-#;0}%";
+        scholarModText.text = $"{totalScholarMod:+#;-#;0}%";
 
-        // Show effective value in base text if modified, otherwise raw
-        speechBaseText.text = (speechHasMod ? effectiveSpeech : baseSpeech).ToString("0");
-        scholarBaseText.text = (scholarHasMod ? effectiveScholar : baseScholar).ToString("0");
+        // Update effective stats
+        speechBaseText.text = voteManager.speechSkill.ToString("0");
+        scholarBaseText.text = voteManager.scholarSkill.ToString("0");
 
-        // Modifier text shows just the percentage
-        speechModText.text = string.Format("{0}{1:0}%", speechMod >= 0 ? "+" : "", speechMod);
-        scholarModText.text = string.Format("{0}{1:0}%", scholarMod >= 0 ? "+" : "", scholarMod);
-
-        // Color-code both base and modifier
-        Color posColor = Color.green;
-        Color negColor = Color.red;
-        Color neutralColor = Color.white;
-
-        Color speechColor = speechMod > 0 ? posColor : (speechMod < 0 ? negColor : neutralColor);
-        Color scholarColor = scholarMod > 0 ? posColor : (scholarMod < 0 ? negColor : neutralColor);
-
-        speechBaseText.color = speechColor;
-        speechModText.color = speechColor;
-        scholarBaseText.color = scholarColor;
-        scholarModText.color = scholarColor;
+        // Color coding
+        Color pos = Color.green, neg = Color.red, neu = Color.white;
+        speechModText.color = totalSpeechMod > 0 ? pos : (totalSpeechMod < 0 ? neg : neu);
+        scholarModText.color = totalScholarMod > 0 ? pos : (totalScholarMod < 0 ? neg : neu);
     }
 }

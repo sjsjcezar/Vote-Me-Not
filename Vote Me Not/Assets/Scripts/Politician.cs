@@ -61,6 +61,14 @@ public class Politician : MonoBehaviour
     [Tooltip("Base NPC difficulty for skill checks; higher = tougher (e.g. 50–150)")]
     public float challengeLevel = 100f;
 
+    [Header("Hard Skil Check Failure Debuff Settings")]
+    [Tooltip("Chance (0-100) to apply failure debuff to player stats")]
+    public float failureDebuffChance = 50f;
+    [Tooltip("Percent reduction to player's speech skill on failure")]
+    public float failureDebuffSpeechPercent = 15f;
+    [Tooltip("Percent reduction to player's scholar skill on failure")]
+    public float failureDebuffScholarPercent = 35f;
+
 
     [Header("Hard Skill Type")]
     [Tooltip("Which stat to use when the player hits the MAIN Skill-Check Button")]
@@ -167,8 +175,8 @@ public class Politician : MonoBehaviour
         var ui = FindObjectOfType<DialogueUI>();
         ui.SetSpeakerName(npcName);
         ui.onDialogueEnd = () => {
-            if (claimUnlocked != null && claimUnlocked.Length > 0 && claimUnlocked[0])
-                TriggerClaimDialogue(0);
+      //      if (claimUnlocked != null && claimUnlocked.Length > 0 && claimUnlocked[0])
+      //          TriggerClaimDialogue(0);
         };
         ui.StartDialogue(initialDialogueContent);
     }

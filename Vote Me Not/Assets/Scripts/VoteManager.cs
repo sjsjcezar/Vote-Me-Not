@@ -8,7 +8,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using TMPro;
-
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
+using System;
 
 [System.Serializable]
 public class DialogueNode
@@ -25,7 +27,6 @@ public class VoteManager : MonoBehaviour
 
     [Header("Energy System")]
     public EnergySystem energySystem;
-
     
     [Header("Politicians Setup")]
     public Politician[] politicians;
@@ -74,11 +75,23 @@ public class VoteManager : MonoBehaviour
     public TMP_Text questionConversationButtonText;
     public Button[] questionButtons;
 
+
     [Header("Skill Check Settings")]
     [Tooltip("Chance (0-100) to succeed the speech skill check.")]
-    public int speechSkill = 50;
+    public int speechSkill = 100;
     [Tooltip("Chance (0-100) to succeed the scholar skill check.")]
-    public int scholarSkill = 50;
+    public int scholarSkill = 100;
+
+    [Header("Base Player Stats")]
+    [Tooltip("Base speech skill value.")]
+    [SerializeField] private int baseSpeechSkill;
+    [Tooltip("Base scholar skill value.")]
+    [SerializeField] private int baseScholarSkill;
+
+    // percent mods
+    private float npcSpeechModPercent = 0f;
+    private float npcScholarModPercent = 0f;
+    public float bottleModPercent   = 0f;
 
     [Header("Skill Check Feedback Text")]
     public TMP_Text successText;
@@ -100,18 +113,44 @@ public class VoteManager : MonoBehaviour
     [Header("Question Dialogue Tree State")]
     private int currentNodeIndex = -1;
 
+
+    [Header("Post-Processing Settings")]
+    public Volume postProcessVolume;
+    private ChromaticAberration chromatic;
+    private Vignette vignette;
+
+    // --- Debuff State ---
+    public bool hasDebuff = false;
+    private int originalSpeechSkill;
+    private int originalScholarSkill;
+    public float NpcSpeechModPercent => npcSpeechModPercent;
+    public float NpcScholarModPercent => npcScholarModPercent;
+
+    private bool hasBoost = false;
+    public bool HasBottleBoost => hasBoost;
+    private float currentBottleBoostPct = 0f;
+    public float BottleBoostPercent => currentBottleBoostPct;
+    private int boostOriginalSpeech, boostOriginalScholar;
+    private float boostRemainingTime = 0f;
+    private Coroutine boostTimerCoroutine;
+
     private DialogueUI dialogueUI;
     private Image fadeImage;
     private bool isTransitioning = false;
     private int currentClaimIndex = -1;
 
-    private bool isOption2ButtonPressed = false;
-
     private bool[] skillCheckDisabled;
 
+    private bool hasBeenInteracted = false;
+    public event Action OnStatsUpdated;
+
+    void Awake()
+    {
+        baseSpeechSkill  = speechSkill;
+        baseScholarSkill = scholarSkill;
+    }
     void Start()
     {
-        // Fade init
         fadeImage = fadePanel.GetComponent<Image>();
         if (fadeImage != null)
         {
@@ -164,6 +203,31 @@ public class VoteManager : MonoBehaviour
             questionSkillCheckButton,
             questionConversationButton
         };
+
+        if (postProcessVolume != null)
+        {
+            var profile = postProcessVolume.profile;
+            profile.TryGet<ChromaticAberration>(out chromatic);
+            profile.TryGet<Vignette>(out vignette);
+            // ensure defaults
+            if (chromatic != null) chromatic.intensity.value = 0f;
+            if (vignette != null)
+            {
+                vignette.intensity.value = 0.212f;
+                vignette.rounded.value = true;
+            }
+        }
+
+        ApplyCurrentPoliticianMods();
+    }
+
+
+    private void ApplyCurrentPoliticianMods() 
+    {
+        var npc = politicians[currentIndex];
+        npcSpeechModPercent   = npc.speechModifierPercent;
+        npcScholarModPercent  = npc.scholarModifierPercent;
+        RecalculateStats();
     }
 
     public void OnInterrogate()
@@ -249,6 +313,29 @@ public class VoteManager : MonoBehaviour
         questionDisagreeButton.interactable = canInteract;
         questionSkillCheckButton.interactable = canInteract;
         questionConversationButton.interactable = canInteract;
+    }
+
+    private void EnableQuestionButtons()
+    {
+        // grab the current question node
+        var curr  = politicians[currentIndex];
+        var tree  = curr.questionTrees[currentClaimIndex];
+        var node  = tree.nodes[currentNodeIndex];
+        int count = node.optionTexts.Length; // 2, 3 or 4
+
+        // enable only as many as the node actually uses
+        for (int i = 0; i < questionButtons.Length; i++)
+        {
+            questionButtons[i].gameObject.SetActive(i < count);
+        }
+    }
+
+    private void DisableQuestionButtons()
+    {
+        questionAgreeButton.gameObject.SetActive(false);
+        questionDisagreeButton.gameObject.SetActive(false);
+        questionSkillCheckButton.gameObject.SetActive(false);
+        questionConversationButton.gameObject.SetActive(false);
     }
 
     private void UpdateQuestionButtons()
@@ -342,7 +429,9 @@ public class VoteManager : MonoBehaviour
             + $"mod={(type==SkillType.Speech?curr.speechModifierPercent:curr.scholarModifierPercent)}%, "
             + $"challenge={curr.challengeLevel})");
 
-            bool success = Random.value * 100f < chance;
+            bool success = UnityEngine.Random.value * 100f < chance;
+
+            DisableQuestionButtons();
 
             ShowSkillFeedback(success);
             curr.ShowSkillResult(success);
@@ -368,6 +457,11 @@ public class VoteManager : MonoBehaviour
             dialogueOptionsPanel.SetActive(true);
             SetMainButtons(true);
             disagreeButton.interactable = false;
+            if(hasBeenInteracted)
+            {
+                skillCheckButton.interactable = false;
+            }
+
             return;
         }
 
@@ -382,6 +476,7 @@ public class VoteManager : MonoBehaviour
 
     private void ContinueQuestionFlow(int optionIndex)
     {
+        EnableQuestionButtons();
         var node = politicians[currentIndex].questionTrees[currentClaimIndex].nodes[currentNodeIndex];
         if (node.isExitNode && optionIndex == 0)
         {
@@ -405,13 +500,13 @@ public class VoteManager : MonoBehaviour
             if (curr.claimUnlocked != null && currentClaimIndex >=0 && currentClaimIndex < curr.claimUnlocked.Length)
                 curr.claimUnlocked[currentClaimIndex] = false;
             curr.ResetConversationTracker(currentClaimIndex);
+            hasBeenInteracted = false;
         };
         curr.TriggerAgreeDialogue(currentClaimIndex);
     }
 
     private void OnQuestion()
     {
-        isOption2ButtonPressed = true;
         var curr = politicians[currentIndex];
         SetMainButtons(false);
         if (currentClaimIndex >=0)
@@ -422,14 +517,21 @@ public class VoteManager : MonoBehaviour
         curr.TriggerQuestionDialogue(currentClaimIndex, currentNodeIndex);
     }
 
+    private void SkillCheckButtonDisabler()
+    {
+        skillCheckButton.interactable = false;
+    }
+
     private void OnSkillCheck()
     {
         if (!energySystem.TryUseHardSkill())
             return;
 
         var curr = politicians[currentIndex];
-        SetMainButtons(false);
-        dialogueOptionsPanel.SetActive(false);
+        Debug.Log("Skill Check is true");
+        hasBeenInteracted = true;
+        ButtonDisabler();
+        SkillCheckButtonDisabler();
 
         // 1) compute raw chance
         float rawChance = GetSkillChance(curr.hardSkillType);
@@ -442,22 +544,89 @@ public class VoteManager : MonoBehaviour
             $"[MainSkillCheck] type={curr.hardSkillType} | raw={rawChance:0.00}% | penalized={penalizedChance:0.00}%");
 
         // 3) roll against penalized chance
-        bool success = Random.value * 100f < penalizedChance;
+        bool success = UnityEngine.Random.value * 100f < penalizedChance;
 
+        // show basic feedback
         ShowSkillFeedback(success);
         curr.ShowSkillResult(success);
 
+        // only apply debuff if not boosted
+        if (!success && !hasDebuff && !hasBoost)
+        {
+            originalSpeechSkill = speechSkill;
+            originalScholarSkill = scholarSkill;
+            speechSkill = Mathf.RoundToInt(speechSkill * (1f - curr.failureDebuffSpeechPercent / 100f));
+            scholarSkill = Mathf.RoundToInt(scholarSkill * (1f - curr.failureDebuffScholarPercent / 100f));
+            hasDebuff = true;
+            StartCoroutine(ApplyDebuffEffects());
+        }
+
+        // restore UI and portrait after dialogue
         dialogueUI.onDialogueEnd = () => {
+            ButtonActivator();
             curr.RevertPortrait();
-            dialogueOptionsPanel.SetActive(false);
-            curr.claimUnlocked[currentClaimIndex] = false;
-            curr.ResetConversationTracker(currentClaimIndex);
         };
 
+        // trigger appropriate dialogue
         if (success)
             curr.TriggerSkillSuccessDialogue(currentClaimIndex);
         else
             curr.TriggerSkillFailDialogue(currentClaimIndex);
+    }
+
+
+    private IEnumerator ApplyDebuffEffects()
+    {
+        float elapsed = 0f;
+        float duration = 2f;
+        // disable vignette rounding immediately
+        if (vignette != null) vignette.rounded.value = false;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            if (chromatic != null) chromatic.intensity.value = Mathf.Lerp(0f, 1f, t);
+            if (vignette != null) vignette.intensity.value = Mathf.Lerp(0.212f, 0.556f, t);
+            yield return null;
+        }
+
+        // ensure final values
+        if (chromatic != null) chromatic.intensity.value = 1f;
+        if (vignette != null) vignette.intensity.value = 0.556f;
+    }
+
+
+    private IEnumerator ClearDebuffEffects()
+    {
+        float elapsed = 0f;
+        float duration = 5f;
+
+        float startVig = vignette != null ? vignette.intensity.value : 0.556f;
+        float startChrom = chromatic != null ? chromatic.intensity.value : 1f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            if (chromatic != null) chromatic.intensity.value = Mathf.Lerp(startChrom, 0f, t);
+            if (vignette != null) vignette.intensity.value = Mathf.Lerp(startVig, 0.212f, t);
+            yield return null;
+        }
+
+        // restore defaults
+        if (chromatic != null) chromatic.intensity.value = 0f;
+        if (vignette != null)
+        {
+            vignette.intensity.value = 0.212f;
+            vignette.rounded.value = true;
+        }
+
+        // restore stats
+        speechSkill = baseSpeechSkill;
+        scholarSkill = baseScholarSkill;
+
+        hasDebuff = false;
     }
 
     private void ShowSkillFeedback(bool success)
@@ -509,6 +678,7 @@ public class VoteManager : MonoBehaviour
         if (isTransitioning) return;
         isTransitioning = true;
 
+
         if (currentIndex < politicians.Length)
         {
             var currentPolitician = politicians[currentIndex];
@@ -525,6 +695,8 @@ public class VoteManager : MonoBehaviour
             StartCoroutine(FadeTransition());
         }
         energySystem.AddEnergy(2);
+        if (hasDebuff)
+            StartCoroutine(ClearDebuffEffects());
     }
 
     public void OnReject()
@@ -550,6 +722,8 @@ public class VoteManager : MonoBehaviour
             StartCoroutine(FadeTransition());
         }
         energySystem.AddEnergy(2);
+        if (hasDebuff)
+            StartCoroutine(ClearDebuffEffects());
     }
 
 
@@ -571,13 +745,76 @@ public class VoteManager : MonoBehaviour
         return Mathf.Clamp(chance, 0f, 100f);
     }
 
+
+    public void ApplyBottleBoost(float boostPct, float duration)
+    {
+        // Clear any debuff effects first
+        if (hasDebuff)
+            StartCoroutine(ClearDebuffEffects());
+
+        // Set modifiers (override previous bottle)
+        hasBoost = true;
+        bottleModPercent = boostPct; // Replace += with = to prevent stacking
+        currentBottleBoostPct = boostPct;
+        RecalculateStats();
+
+        // Handle boost timer
+        if (boostTimerCoroutine != null)
+        {
+            StopCoroutine(boostTimerCoroutine);
+        }
+        boostTimerCoroutine = StartCoroutine(BoostTimer(duration));
+    }
+
+    private IEnumerator BoostTimer(float duration)
+    {
+        boostRemainingTime = duration;
+        while (boostRemainingTime > 0f)
+        {
+            boostRemainingTime -= Time.deltaTime;
+            yield return null;
+        }
+
+        // Reset modifiers when expired
+        bottleModPercent = 0f;
+        currentBottleBoostPct = 0f;
+        hasBoost = false;
+        boostTimerCoroutine = null;
+        RecalculateStats();
+    }
+
+    private IEnumerator ClearBottleBoostAfter(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        // restore stats
+        speechSkill = boostOriginalSpeech;
+        scholarSkill = boostOriginalScholar;
+        hasBoost = false;
+    }
+
+
+
+    private void RecalculateStats()
+    {
+        float speechTotal = npcSpeechModPercent + bottleModPercent;
+        float scholarTotal = npcScholarModPercent + bottleModPercent;
+        speechSkill  = Mathf.RoundToInt(baseSpeechSkill  * (1f + speechTotal  / 100f));
+        scholarSkill = Mathf.RoundToInt(baseScholarSkill * (1f + scholarTotal / 100f));
+
+        // Notify subscribers that stats have updated
+        OnStatsUpdated?.Invoke();
+    }
+
     private IEnumerator FadeTransition()
     {
         yield return StartCoroutine(FadeIn());
         politicians[currentIndex].gameObject.SetActive(false);
         currentIndex++;
         if (currentIndex < politicians.Length)
+        {
             politicians[currentIndex].gameObject.SetActive(true);
+            ApplyCurrentPoliticianMods(); // Add this line
+        }
         yield return StartCoroutine(FadeOut());
         isTransitioning = false;
     }
