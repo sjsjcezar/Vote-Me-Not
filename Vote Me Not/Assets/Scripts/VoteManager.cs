@@ -421,13 +421,19 @@ public class VoteManager : MonoBehaviour
             SkillType type = node.skillCheckTypes[optionIndex];
             float chance = GetSkillChance(type);
 
+            if (hasBoost)
+            {
+                chance += 25f;
+                chance = Mathf.Clamp(chance, 0f, 100f);
+            }
+
             // DEBUG log for DNT
             Debug.LogError(
                 $"[DNTSkillCheck] type={type} | "
             + $"chance={chance:0.00}% "
             + $"(base={(type==SkillType.Speech?speechSkill:scholarSkill)}, "
             + $"mod={(type==SkillType.Speech?curr.speechModifierPercent:curr.scholarModifierPercent)}%, "
-            + $"challenge={curr.challengeLevel})");
+            + $"challenge={curr.challengeLevel}) | hasBoost={hasBoost}");
 
             bool success = UnityEngine.Random.value * 100f < chance;
 
@@ -539,9 +545,23 @@ public class VoteManager : MonoBehaviour
         // 2) apply the hard‐check penalty
         float penalizedChance = Mathf.Clamp(rawChance - 20f, 0f, 100f);
 
+
+        if (hasBoost)
+        {
+            if (penalizedChance < 50f)
+            {
+                penalizedChance += 30f;
+            }
+            else
+            {
+                penalizedChance += 15f;
+            }
+            penalizedChance = Mathf.Clamp(penalizedChance, 0f, 100f);
+        }
+
         // DEBUG log for main skill-check
         Debug.LogError(
-            $"[MainSkillCheck] type={curr.hardSkillType} | raw={rawChance:0.00}% | penalized={penalizedChance:0.00}%");
+            $"[MainSkillCheck] type={curr.hardSkillType} | raw={rawChance:0.00}% | penalized={penalizedChance:0.00}% | hasBoost={hasBoost}");
 
         // 3) roll against penalized chance
         bool success = UnityEngine.Random.value * 100f < penalizedChance;
