@@ -1,12 +1,14 @@
 # 🗳️ Vote Me Not! [Demo]
 
-**Vote Me Not!** is a **2D Satirical Political Game** where players take on the role of a moral arbiter, deciding which politicians should run for office—or be sent packing. In a world full of flawed candidates, questionable policies, and suspicious smiles, it's up to *you* to sift through the nonsense and determine who's fit to lead.
+**Vote Me Not!** is a **2D Satirical Political MOBILE Game** where players take on the role of a moral arbiter, deciding which politicians should run for office—or be sent packing. In a world full of flawed candidates, questionable policies, and suspicious smiles, it's up to *you* to sift through the nonsense and determine who's fit to lead.
 
 Inspired by the social deduction mechanics of *"That's Not My Neighbor"*, but with a sharp political twist.
 
 > This project is a student-led indie Horror Game created as part of our requirement for the Mobile Communication class. Do note that this repository contains all the Unity Files. If you want to experience the game itself, you'll have to build it first.
 ---
-> This game contains characters real life figures. Please do not play the game if you are a fanatic!
+> Disclaimer: This game features fictionalized depictions inspired by real-life political figures. If you are deeply devoted to any political figure, you may find the content satirical or provocative. Player discretion is advised.
+---
+Note: This game was originally developed for PC. A mobile port was made purely for compliance reasons. Some features may not translate perfectly—thanks for your understanding! 🙏
 
 ## 🎮 Game Overview
 
