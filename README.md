@@ -1,0 +1,60 @@
+# 🗳️ Vote Me Not! [Demo]
+
+**Vote Me Not!** is a **2D Satirical Political Game** where players take on the role of a moral arbiter, deciding which politicians should run for office—or be sent packing. In a world full of flawed candidates, questionable policies, and suspicious smiles, it's up to *you* to sift through the nonsense and determine who's fit to lead.
+
+Inspired by the social deduction mechanics of *"That's Not My Neighbor"*, but with a sharp political twist.
+
+> This project is a student-led indie Horror Game created as part of our requirement for the Mobile Communication class. Do note that this repository contains all the Unity Files. If you want to experience the game itself, you'll have to build it first.
+---
+> This game contains characters real life figures. Please do not play the game if you are a fanatic!
+
+## 🎮 Game Overview
+
+- **Genre:** 2D Political Satire / Simulation
+- **Perspective:** Side View (2D)
+- **Theme:** Satirical, Dark Humor, Social Commentary
+
+---
+
+## 🧠 Core Concept
+
+In **Vote Me Not!**, every round introduces a series of politicians—each with questionable backgrounds, oddball policies, and hidden agendas. Your job is to:
+
+- **Investigate** candidates
+- **Review** their issues, their stances, and political profiles
+- **Accept or Reject** them based on how “qualified” they are (or not)
+- Survive the public backlash (and absurdity) of modern politics
+
+No one is perfect, but some are *a little too imperfect*.
+
+---
+
+## 🔑 Features
+
+- 🧾 **Unique Voting Mechanic**: Choose who to support based on dossiers and dialogue.
+- 🗣️ **Dynamic Dialogue**: Satirical writing reflecting exaggerated political traits.
+- 🎨 **Original 2D Art**: Distinctive politician sprites and expressive animations.
+- 😂 **Dark Humor**: A ridiculous yet familiar look into the world of politics.
+- 📈 **Replayable Rounds**: Different politicians and outcomes each playthrough.
+
+---
+
+## 🖌️ Acknowledgements
+
+**Samantha Caoile** – Artist for the politician assets  
+She also contributed to our other project, **TikTik** (check it out here → [TikTik on GitHub](https://github.com/sjsjcezar/TikTik-GameDev2))
+
+---
+
+## 🏗️ Development Notes
+
+> This is a **Demo Build**. More candidates, deeper systems, and branching scenarios are planned for future updates.
+
+---
+
+## 📸 Screenshots
+
+_(Add here once assets/screens are available)_
+
+```markdown
+![Gameplay Screenshot](Assets/Images/screenshot1.png)
