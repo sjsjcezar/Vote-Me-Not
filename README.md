@@ -46,7 +46,7 @@ No one is perfect, but some are *a little too imperfect*.
 ## 🖌️ Acknowledgements
 
 **Samantha Caoile** – Artist for the politician assets  
-She also contributed to our other project, **TikTik** (check it out here → [TikTik on GitHub](https://github.com/sjsjcezar/TikTik-GameDev2))
+She also one of the core members to our other project, **TikTik** (check it out here → [TikTik on GitHub](https://github.com/sjsjcezar/TikTik-GameDev2))
 
 ---
 
@@ -56,9 +56,3 @@ She also contributed to our other project, **TikTik** (check it out here → [Ti
 
 ---
 
-## 📸 Screenshots
-
-_(Add here once assets/screens are available)_
-
-```markdown
-![Gameplay Screenshot](Assets/Images/screenshot1.png)
