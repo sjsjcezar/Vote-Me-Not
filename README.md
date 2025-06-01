@@ -33,16 +33,6 @@ No one is perfect, but some are *a little too imperfect*.
 
 ---
 
-## 🔑 Features
-
-- 🧾 **Unique Voting Mechanic**: Choose who to support based on dossiers and dialogue.
-- 🗣️ **Dynamic Dialogue**: Satirical writing reflecting exaggerated political traits.
-- 🎨 **Original 2D Art**: Distinctive politician sprites and expressive animations.
-- 😂 **Dark Humor**: A ridiculous yet familiar look into the world of politics.
-- 📈 **Replayable Rounds**: Different politicians and outcomes each playthrough.
-
----
-
 ## 🖌️ Acknowledgements
 
 **Samantha Caoile** – Artist for the politician assets  
