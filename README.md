@@ -4,7 +4,7 @@
 
 Inspired by the social deduction mechanics of *"That's Not My Neighbor"*, but with a sharp political twist.
 
-![TikTik Cover](VoteMeNot_1)
+![TikTik Cover](VoteMeNot_1.png)
 
 > This project is a student-led indie Horror Game created as part of our requirement for the Mobile Communication class. Do note that this repository contains all the Unity Files. If you want to experience the game itself, you'll have to build it first.
 ---
