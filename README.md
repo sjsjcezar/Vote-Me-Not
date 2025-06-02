@@ -8,7 +8,7 @@ Inspired by the game *"That's Not My Neighbor"*, but with a sharp political twis
 
 ![TikTik Cover](VoteMeNot_1.png)
 
-> This project is a student-led indie Game created as part of our requirement for the Mobile Communication class. Do note that this repository contains all the Unity Files. If you want to experience the game itself, you'll have to build it first.
+> This project is a student indie Game created as part of my requirement for the Mobile Communication class. Do note that this repository contains all the Unity Files. If you want to experience the game itself, you'll have to build it first.
 ---
 > Disclaimer: This game features depictions of real-life political figures. If you are deeply devoted to any political figure, you may find the content satirical or provocative. Player discretion is advised.
 ---
