@@ -10,7 +10,7 @@ Inspired by the game *"That's Not My Neighbor"*, but with a sharp political twis
 ---
 > Disclaimer: This game features fictionalized depictions inspired by real-life political figures. If you are deeply devoted to any political figure, you may find the content satirical or provocative. Player discretion is advised.
 ---
-## Note: This game was originally developed for PC. A mobile port was made purely for compliance reasons. Some features may not translate perfectly—thanks for your understanding! 🙏
+## Note: - This game was originally developed for PC. A mobile port was made purely for compliance reasons. Some features may not translate perfectly—thanks for your understanding! 🙏
 
 ## 🎮 Game Overview
 
