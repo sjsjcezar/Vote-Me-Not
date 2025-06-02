@@ -1,3 +1,5 @@
+# Note: This game was originally developed for PC. A mobile port was made purely for compliance reasons. Some features may not translate perfectly—thanks for your understanding! 🙏
+
 # 🗳️ Vote Me Not! [Demo]
 
 **Vote Me Not!** is a **2D Satirical Political MOBILE Game** where players take on the role of a moral arbiter, deciding which politicians should run for office—or be sent packing. In a world full of flawed candidates, questionable policies, and suspicious smiles, it's up to *you* to sift through the nonsense and determine who's fit to lead.
@@ -10,7 +12,7 @@ Inspired by the game *"That's Not My Neighbor"*, but with a sharp political twis
 ---
 > Disclaimer: This game features fictionalized depictions inspired by real-life political figures. If you are deeply devoted to any political figure, you may find the content satirical or provocative. Player discretion is advised.
 ---
-# Note: This game was originally developed for PC. A mobile port was made purely for compliance reasons. Some features may not translate perfectly—thanks for your understanding! 🙏
+
 
 ## 🎮 Game Overview
 
