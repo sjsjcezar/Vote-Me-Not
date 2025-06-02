@@ -2,7 +2,7 @@
 
 **Vote Me Not!** is a **2D Satirical Political MOBILE Game** where players take on the role of a moral arbiter, deciding which politicians should run for office—or be sent packing. In a world full of flawed candidates, questionable policies, and suspicious smiles, it's up to *you* to sift through the nonsense and determine who's fit to lead.
 
-Inspired by the social deduction mechanics of *"That's Not My Neighbor"*, but with a sharp political twist.
+Inspired by the game *"That's Not My Neighbor"*, but with a sharp political twist.
 
 ![TikTik Cover](VoteMeNot_1.png)
 
