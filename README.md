@@ -1,4 +1,4 @@
-# Note: This game was originally developed for PC. A mobile port was made purely for compliance reasons. Some features may not translate perfectly—thanks for your understanding! 🙏
+# Note: This game was originally developed for PC. A mobile port was made purely for compliance reasons. Some features may not translate perfectly—thank u for your understanding! 🙏
 
 # 🗳️ Vote Me Not! [Demo]
 
